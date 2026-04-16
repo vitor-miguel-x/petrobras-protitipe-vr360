@@ -7,10 +7,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.fragment.app.FragmentActivity
 import com.example.petrobras_vr_prototipe.screens.CameraScreen
 import com.example.petrobras_vr_prototipe.ui.theme.PetrobrasVrPrototipeTheme
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // 1. Diz ao Android que o app vai desenhar por trás das barras de sistema

@@ -8,7 +8,6 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.*
@@ -31,6 +30,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.petrobras_vr_prototipe.R
 import com.example.petrobras_vr_prototipe.components.IrisAuthOverlay
+import com.example.petrobras_vr_prototipe.components.MenuHome
 import com.example.petrobras_vr_prototipe.components.WelcomeMessageOverlay
 import com.example.petrobras_vr_prototipe.model.EyeAnalyzer
 import com.example.petrobras_vr_prototipe.util.rememberSafeBitmap
@@ -82,6 +82,7 @@ fun CameraScreen() {
     // 3. RECURSOS
     val iconBitmap = rememberSafeBitmap(R.drawable.icone_petrobras, targetWidth = 200)
     val dashboardBitmap = rememberSafeBitmap(R.drawable.frame_1, targetWidth = 800)
+    val networkingBitmap = rememberSafeBitmap(R.drawable.networking_screen, targetWidth = 800)
     val tasksBitmap = rememberSafeBitmap(R.drawable.group_1, targetWidth = 800)
 
     // 4. LÓGICA DE IA AVANÇADA (BRÁS)
@@ -104,9 +105,9 @@ fun CameraScreen() {
 
                     when {
                         // Comando: Abrir Menu/Dashboard
-                        text.contains("menu") || text.contains("painel") || text.contains("abrir") -> {
-                            tts?.speak("Com certeza. Abrindo menu principal.", TextToSpeech.QUEUE_FLUSH, null, null)
-                            currentAppState = VrAppState.DASHBOARD
+                        text.contains("bate-papo") || text.contains("chat")  -> {
+                            tts?.speak("Com certeza. Abrindo Secção Networking principal.", TextToSpeech.QUEUE_FLUSH, null, null)
+                            currentAppState = VrAppState.NETWORKING
                         }
 
                         // Comando: Barra de Tarefas
@@ -116,7 +117,7 @@ fun CameraScreen() {
                         }
 
                         // Comando: Fechar tudo / Voltar
-                        text.contains("fechar") || text.contains("sair") || text.contains("limpar") || text.contains("voltar") -> {
+                        text.contains("fechar") || text.contains("sair") || text.contains("limpar") || text.contains("voltar") || text.contains("exit") || text.contains("return") -> {
                             tts?.speak("Certo. Minimizando interfaces.", TextToSpeech.QUEUE_FLUSH, null, null)
                             currentAppState = VrAppState.AR_IDLE
                         }
@@ -174,51 +175,51 @@ fun CameraScreen() {
                 WelcomeMessageOverlay()
             }
             else -> {
-                // Layout Lateral Direito: Ícone abaixo, Dashboard/Tasks acima
+                // Este Box agora serve como o "espaço sideral" onde posicionamos os itens
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(end = 25.dp, bottom = 40.dp),
-                    contentAlignment = Alignment.BottomEnd
+                        .padding(start = 25.dp, end = 25.dp, bottom = 40.dp) // Padding nas duas laterais
                 ) {
+
+                    // --- 1. MENU/ÍCONE À ESQUERDA ---
+                    Box(
+                        modifier = Modifier.align(Alignment.BottomStart)
+                    ) {
+                        if (iconBitmap != null) {
+                            MenuHome(onNavigate = { newState ->
+                                currentAppState = newState
+
+                                // Dica: Você pode até fazer o Brás falar ao clicar!
+                                val mensagem = if(newState == VrAppState.TASKS) "Abrindo tarefas" else "Abrindo Networking"
+                                tts?.speak(mensagem, TextToSpeech.QUEUE_FLUSH, null, null)
+                            })
+                        }
+                    }
+
+                    // --- 2. TAREFAS/DASHBOARD À DIREITA ---
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.align(Alignment.BottomEnd), // Alinha a coluna toda à direita
+                        horizontalAlignment = Alignment.End,           // Alinha o conteúdo da coluna à direita
                         verticalArrangement = Arrangement.Bottom
                     ) {
-                        // Conteúdo variável (Dashboard ou Tarefas)
-                        if (currentAppState == VrAppState.DASHBOARD && dashboardBitmap != null) {
+                        if (currentAppState == VrAppState.NETWORKING && networkingBitmap != null) {
                             Image(
-                                bitmap = dashboardBitmap.asImageBitmap(),
+                                bitmap = networkingBitmap.asImageBitmap(),
                                 contentDescription = "Dashboard",
                                 modifier = Modifier
                                     .size(350.dp)
                                     .clickable { currentAppState = VrAppState.TASKS },
                                 contentScale = ContentScale.Fit
                             )
-                            Spacer(modifier = Modifier.height(15.dp))
                         } else if (currentAppState == VrAppState.TASKS && tasksBitmap != null) {
                             Image(
                                 bitmap = tasksBitmap.asImageBitmap(),
                                 contentDescription = "Tarefas",
                                 modifier = Modifier
-                                    .size(350.dp)
+                                    .size(400.dp)
                                     .clickable { currentAppState = VrAppState.AR_IDLE },
                                 contentScale = ContentScale.Fit
-                            )
-                            Spacer(modifier = Modifier.height(15.dp))
-                        }
-
-                        // Ícone Fixo da Petrobras
-                        if (iconBitmap != null) {
-                            Image(
-                                bitmap = iconBitmap.asImageBitmap(),
-                                contentDescription = "Ícone Petrobras",
-                                modifier = Modifier
-                                    .size(70.dp)
-                                    .clickable {
-                                        currentAppState = if (currentAppState == VrAppState.AR_IDLE)
-                                            VrAppState.DASHBOARD else VrAppState.AR_IDLE
-                                    }
                             )
                         }
                     }
@@ -230,7 +231,7 @@ fun CameraScreen() {
 
 // Certifique-se de que o Enum e a SmartCameraPreview continuam abaixo no mesmo arquivo
 enum class VrAppState {
-    AUTHENTICATING, WELCOME, AR_IDLE, DASHBOARD, TASKS
+    AUTHENTICATING, WELCOME, AR_IDLE, NETWORKING, TASKS
 }
 @Composable
 fun SmartCameraPreview(isFrontCamera: Boolean, onEyeDetectedState: (Int?) -> Unit) {
