@@ -2,6 +2,8 @@ package com.example.petrobras_vr_prototipe.screens
 
 import android.Manifest
 import android.content.Intent
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.speech.RecognitionListener
@@ -17,8 +19,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -37,10 +37,27 @@ import com.example.petrobras_vr_prototipe.util.rememberSafeBitmap
 import kotlinx.coroutines.delay
 import java.util.Locale
 
-@Composable
-fun CameraScreen() {
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.petrobras_vr_prototipe.util.BiometricUtils
+import com.example.petrobras_vr_prototipe.viewmodel.AuthViewModel
+import kotlinx.coroutines.launch
 
+
+// Fora da função CameraScreen
+enum class VrAppState {
+    AUTHENTICATING, WELCOME, AR_IDLE, NETWORKING, TASKS
+}
+@Composable
+fun CameraScreen(
+    authViewModel: AuthViewModel = viewModel()
+) {
     val context = LocalContext.current
+    val activity = context as? FragmentActivity
+    val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    var isCameraPaused by remember { mutableStateOf(false) }
     var detectedFaceId by remember { mutableStateOf<Int?>(null) }
     var currentAppState by remember { mutableStateOf<VrAppState>(VrAppState.AUTHENTICATING) }
 
@@ -52,19 +69,23 @@ fun CameraScreen() {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
     }
 
-    // 2. VOZ MASCULINA E TTS
+    // 2. TTS E DIAGNÓSTICO
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
 
     LaunchedEffect(Unit) {
+        authViewModel.init(context)
         tts = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 tts?.language = Locale("pt", "BR")
-
-                // Tenta encontrar uma voz masculina no sistema
                 val voices = tts?.voices
                 val maleVoice = voices?.find { it.name.lowercase().contains("male") || it.name.lowercase().contains("pt-br-x-afs-local") }
-                if (maleVoice != null) {
-                    tts?.voice = maleVoice
+                if (maleVoice != null) { tts?.voice = maleVoice }
+
+                val biometricManager = BiometricManager.from(context)
+                when (biometricManager.canAuthenticate(BIOMETRIC_STRONG)) {
+                    BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> tts?.speak("Brás informando: Sem sensores de Face ID.", TextToSpeech.QUEUE_FLUSH, null, null)
+                    BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> tts?.speak("Configure sua biometria nas configurações.", TextToSpeech.QUEUE_FLUSH, null, null)
+                    BiometricManager.BIOMETRIC_SUCCESS -> tts?.speak("Sistemas biométricos prontos.", TextToSpeech.QUEUE_FLUSH, null, null)
                 }
             }
         }
@@ -79,52 +100,35 @@ fun CameraScreen() {
         launcher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
     }
 
-    // 3. RECURSOS
     val iconBitmap = rememberSafeBitmap(R.drawable.icone_petrobras, targetWidth = 200)
-    val dashboardBitmap = rememberSafeBitmap(R.drawable.frame_1, targetWidth = 800)
     val networkingBitmap = rememberSafeBitmap(R.drawable.networking_screen, targetWidth = 800)
-    val tasksBitmap = rememberSafeBitmap(R.drawable.group_1, targetWidth = 800)
+    val tasksBitmap = rememberSafeBitmap(R.drawable.tarefas_screen, targetWidth = 800)
 
-    // 4. LÓGICA DE IA AVANÇADA (BRÁS)
+    // 4. VOZ (BRÁS)
     DisposableEffect(hasAudioPermission) {
         if (!hasAudioPermission) return@DisposableEffect onDispose {}
-
         val speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR")
         }
-
         val listener = object : RecognitionListener {
             override fun onResults(results: Bundle?) {
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION) ?: return
                 val text = matches.joinToString(" ").lowercase()
-
-                // Gatilho Principal: "Brás"
-                if (text.contains("brás") || text.contains("braz") || text.contains("bras")) {
-
+                if (text.contains("brás") || text.contains("braz")) {
                     when {
-                        // Comando: Abrir Menu/Dashboard
-                        text.contains("bate-papo") || text.contains("chat")  -> {
-                            tts?.speak("Com certeza. Abrindo Secção Networking principal.", TextToSpeech.QUEUE_FLUSH, null, null)
+                        text.contains("networking") || text.contains("bate-papo") -> {
+                            tts?.speak("Abrindo Networking.", TextToSpeech.QUEUE_FLUSH, null, null)
                             currentAppState = VrAppState.NETWORKING
                         }
-
-                        // Comando: Barra de Tarefas
-                        text.contains("tarefa") || text.contains("trabalho") || text.contains("work") || text.contains("working")-> {
-                            tts?.speak("Entendido. Exibindo suas tarefas pendentes.", TextToSpeech.QUEUE_FLUSH, null, null)
+                        text.contains("tarefa") || text.contains("agenda") -> {
+                            tts?.speak("Exibindo tarefas.", TextToSpeech.QUEUE_FLUSH, null, null)
                             currentAppState = VrAppState.TASKS
                         }
-
-                        // Comando: Fechar tudo / Voltar
-                        text.contains("fechar") || text.contains("sair") || text.contains("limpar") || text.contains("voltar") || text.contains("exit") || text.contains("return") -> {
-                            tts?.speak("Certo. Minimizando interfaces.", TextToSpeech.QUEUE_FLUSH, null, null)
+                        text.contains("fechar") || text.contains("sair") -> {
+                            tts?.speak("Minimizando interfaces.", TextToSpeech.QUEUE_FLUSH, null, null)
                             currentAppState = VrAppState.AR_IDLE
-                        }
-
-                        // Resposta padrão caso só chame o nome
-                        else -> {
-                            tts?.speak("Sim? Como posso ajudar?", TextToSpeech.QUEUE_FLUSH, null, null)
                         }
                     }
                 }
@@ -139,32 +143,42 @@ fun CameraScreen() {
             override fun onPartialResults(p0: Bundle?) {}
             override fun onEvent(p0: Int, p1: Bundle?) {}
         }
-
         speechRecognizer.setRecognitionListener(listener)
         speechRecognizer.startListening(intent)
-
-        onDispose {
-            speechRecognizer.destroy()
-            tts?.stop()
-            tts?.shutdown()
-        }
+        onDispose { speechRecognizer.destroy() }
     }
 
-    // --- 5. INTERFACE DO USUÁRIO ---
     Box(modifier = Modifier.fillMaxSize()) {
-        // CAMADA DA CÂMERA
-        if (hasCameraPermission) {
+        // CAMADA DA CÂMERA (SÓ RENDERIZA SE NÃO ESTIVER PAUSADA)
+        if (hasCameraPermission && !isCameraPaused) {
             SmartCameraPreview(
-                isFrontCamera = currentAppState == VrAppState.AUTHENTICATING,
+                isFrontCamera = (currentAppState == VrAppState.AUTHENTICATING),
                 onEyeDetectedState = { id -> detectedFaceId = id }
             )
         }
 
-        // CAMADA DE UI (OVERLAYS E DASHBOARD)
         when (currentAppState) {
             VrAppState.AUTHENTICATING -> {
                 IrisAuthOverlay(detectedFaceId = detectedFaceId) {
-                    currentAppState = VrAppState.WELCOME
+                    activity?.let { fragmentActivity ->
+                        // PAUSA A CÂMERA PARA LIBERAR O HARDWARE
+                        isCameraPaused = true
+                        scope.launch {
+                            delay(800) // Delay crucial para o driver da câmera fechar
+                            BiometricUtils.autenticar(
+                                activity = fragmentActivity,
+                                onSucesso = {
+                                    isCameraPaused = false
+                                    tts?.speak("Identidade confirmada.", TextToSpeech.QUEUE_FLUSH, null, null)
+                                    currentAppState = VrAppState.WELCOME
+                                },
+                                onError = {
+                                    isCameraPaused = false
+                                    tts?.speak("Falha na identificação.", TextToSpeech.QUEUE_FLUSH, null, null)
+                                }
+                            )
+                        }
+                    }
                 }
             }
             VrAppState.WELCOME -> {
@@ -175,52 +189,15 @@ fun CameraScreen() {
                 WelcomeMessageOverlay()
             }
             else -> {
-                // Este Box agora serve como o "espaço sideral" onde posicionamos os itens
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(start = 25.dp, end = 25.dp, bottom = 40.dp) // Padding nas duas laterais
-                ) {
-
-                    // --- 1. MENU/ÍCONE À ESQUERDA ---
-                    Box(
-                        modifier = Modifier.align(Alignment.BottomStart)
-                    ) {
-                        if (iconBitmap != null) {
-                            MenuHome(onNavigate = { newState ->
-                                currentAppState = newState
-
-                                // Dica: Você pode até fazer o Brás falar ao clicar!
-                                val mensagem = if(newState == VrAppState.TASKS) "Abrindo tarefas" else "Abrindo Networking"
-                                tts?.speak(mensagem, TextToSpeech.QUEUE_FLUSH, null, null)
-                            })
-                        }
+                Box(modifier = Modifier.fillMaxSize().padding(horizontal = 25.dp, vertical = 40.dp)) {
+                    Box(modifier = Modifier.align(Alignment.BottomStart)) {
+                        MenuHome(onNavigate = { currentAppState = it })
                     }
-
-                    // --- 2. TAREFAS/DASHBOARD À DIREITA ---
-                    Column(
-                        modifier = Modifier.align(Alignment.BottomEnd), // Alinha a coluna toda à direita
-                        horizontalAlignment = Alignment.End,           // Alinha o conteúdo da coluna à direita
-                        verticalArrangement = Arrangement.Bottom
-                    ) {
+                    Column(modifier = Modifier.align(Alignment.BottomEnd), horizontalAlignment = Alignment.End) {
                         if (currentAppState == VrAppState.NETWORKING && networkingBitmap != null) {
-                            Image(
-                                bitmap = networkingBitmap.asImageBitmap(),
-                                contentDescription = "Dashboard",
-                                modifier = Modifier
-                                    .size(350.dp)
-                                    .clickable { currentAppState = VrAppState.TASKS },
-                                contentScale = ContentScale.Fit
-                            )
+                            Image(bitmap = networkingBitmap.asImageBitmap(), contentDescription = null, modifier = Modifier.size(350.dp).clickable { currentAppState = VrAppState.TASKS })
                         } else if (currentAppState == VrAppState.TASKS && tasksBitmap != null) {
-                            Image(
-                                bitmap = tasksBitmap.asImageBitmap(),
-                                contentDescription = "Tarefas",
-                                modifier = Modifier
-                                    .size(400.dp)
-                                    .clickable { currentAppState = VrAppState.AR_IDLE },
-                                contentScale = ContentScale.Fit
-                            )
+                            Image(bitmap = tasksBitmap.asImageBitmap(), contentDescription = null, modifier = Modifier.size(400.dp).clickable { currentAppState = VrAppState.AR_IDLE })
                         }
                     }
                 }
@@ -229,15 +206,21 @@ fun CameraScreen() {
     }
 }
 
-// Certifique-se de que o Enum e a SmartCameraPreview continuam abaixo no mesmo arquivo
-enum class VrAppState {
-    AUTHENTICATING, WELCOME, AR_IDLE, NETWORKING, TASKS
-}
 @Composable
 fun SmartCameraPreview(isFrontCamera: Boolean, onEyeDetectedState: (Int?) -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
+
+    // Garante a liberação total do hardware ao ser removido da tela
+    DisposableEffect(Unit) {
+        onDispose {
+            try {
+                val cameraProvider = cameraProviderFuture.get()
+                cameraProvider.unbindAll()
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
 
     AndroidView(
         modifier = Modifier.fillMaxSize(),

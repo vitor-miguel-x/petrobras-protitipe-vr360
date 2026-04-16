@@ -37,7 +37,7 @@ fun IrisAuthOverlay(
     LaunchedEffect(detectedFaceId) {
         if (detectedFaceId != null) {
             // Tente passar o valor diretamente sem o nome "faceId =" caso o erro persista
-            val savedHash = viewModel.getPersistentHash(faceId = detectedFaceId!!)
+            val savedHash = viewModel.getPersistentHash()
 
             // Para dar efeito de VR, fazemos o "Scanning" apenas na primeira vez
             if (currentGeneratedCode != savedHash) {
