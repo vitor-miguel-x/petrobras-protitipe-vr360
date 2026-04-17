@@ -56,11 +56,7 @@ fun MenuHome(
                 slideInVertically(initialOffsetY = { it / 2 }),
     ) {
         Row(
-            modifier = Modifier.graphicsLayer(
-                rotationY = 15f,
-                rotationX = -10f,
-                cameraDistance = 12f
-            )
+            modifier = Modifier
                 .padding(horizontal = 16.dp)
                 // Aumentei a largura e altura para caber os ícones maiores
                 .width(360.dp)

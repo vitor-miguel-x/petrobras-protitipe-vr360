@@ -1,7 +1,6 @@
 package com.example.petrobras_vr_prototipe.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,27 +23,26 @@ fun SettingsOverlay(
     onClose: () -> Unit,
     onResetBiometrics: () -> Unit
 ) {
-    // Variáveis de estado simuladas para a UI
     var voiceEnabled by remember { mutableStateOf(true) }
     var arOpacity by remember { mutableStateOf(0.8f) }
 
+    // Definindo as cores principais da Petrobras
+    val petrobrasGreen = Color(0xFF008A52)
+    val petrobrasYellow = Color(0xFFFFA600)
+    val textColorPrimary = Color(0xFF1E1E1E) // Quase preto para leitura
+    val textColorSecondary = Color(0xFF555555) // Cinza escuro para subtítulos
+
     Box(
-        modifier = Modifier.graphicsLayer(
-            rotationY = 20f,
-            rotationX = -10f,
-            cameraDistance = 12f
-        )
-            .height(225.dp)
-            .width(330.dp)
-            .background(Color.Black.copy(alpha = 0.4f)), // Fundo escuro para destacar o painel
+        modifier = Modifier
+            .fillMaxSize() // Ocupa a tela para o overlay
+            .background(Color.Black.copy(alpha = 0.2f)), // Overlay de fundo mais suave
         contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier
-                .width(450.dp)
+                .width(400.dp) // Ajustado para não cortar conteúdo
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF1E1E1E).copy(alpha = 0.9f)) // Estilo Painel VR
-                .border(1.dp, Color(0xFF008A52), RoundedCornerShape(16.dp)) // Borda verde Petrobras
+                .background(Color.White) // Fundo Branco
                 .padding(24.dp)
         ) {
             // Cabeçalho
@@ -55,71 +52,75 @@ fun SettingsOverlay(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Settings, contentDescription = "Config", tint = Color(0xFF008A52))
+                    Icon(Icons.Default.Settings, contentDescription = "Config", tint = petrobrasGreen)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Configurações do Sistema",
-                        color = Color.White,
+                        color = textColorPrimary,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
                 IconButton(onClick = onClose) {
-                    Icon(Icons.Default.Close, contentDescription = "Fechar", tint = Color.White)
+                    Icon(Icons.Default.Close, contentDescription = "Fechar", tint = textColorSecondary)
                 }
             }
 
-            Divider(color = Color.Gray.copy(alpha = 0.3f), modifier = Modifier.padding(vertical = 16.dp))
+            Divider(color = Color.LightGray.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 16.dp))
 
             // Seção 1: IA e Áudio
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Mic, contentDescription = "Mic", tint = Color.LightGray)
+                Icon(Icons.Default.Mic, contentDescription = "Mic", tint = petrobrasGreen)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Assistente Brás (IA)", color = Color.LightGray, fontWeight = FontWeight.SemiBold)
+                Text(text = "Assistente Brás (IA)", color = textColorSecondary, fontWeight = FontWeight.SemiBold)
             }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "Reconhecimento de Voz Contínuo", color = Color.White, fontSize = 14.sp)
+                Text(text = "Reconhecimento de Voz Contínuo", color = textColorPrimary, fontSize = 14.sp)
                 Switch(
                     checked = voiceEnabled,
                     onCheckedChange = { voiceEnabled = it },
-                    colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF008A52))
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = petrobrasGreen
+                    )
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             // Seção 2: Interface AR
-            Text(text = "Opacidade da Interface AR", color = Color.White, fontSize = 14.sp)
+            Text(text = "Opacidade da Interface AR", color = textColorPrimary, fontSize = 14.sp)
             Slider(
                 value = arOpacity,
                 onValueChange = { arOpacity = it },
                 valueRange = 0.2f..1f,
                 colors = SliderDefaults.colors(
-                    thumbColor = Color(0xFF008A52),
-                    activeTrackColor = Color(0xFF008A52)
+                    thumbColor = petrobrasGreen,
+                    activeTrackColor = petrobrasGreen,
+                    inactiveTrackColor = petrobrasGreen.copy(alpha = 0.24f)
                 )
             )
 
-            Divider(color = Color.Gray.copy(alpha = 0.3f), modifier = Modifier.padding(vertical = 16.dp))
+            Divider(color = Color.LightGray.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 16.dp))
 
             // Seção 3: Segurança
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Lock, contentDescription = "Security", tint = Color.LightGray)
+                Icon(Icons.Default.Lock, contentDescription = "Security", tint = textColorSecondary)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Segurança Operacional", color = Color.LightGray, fontWeight = FontWeight.SemiBold)
+                Text(text = "Segurança Operacional", color = textColorSecondary, fontWeight = FontWeight.SemiBold)
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             OutlinedButton(
                 onClick = onResetBiometrics,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFFA600)), // Amarelo Petrobras
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFA600))
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = petrobrasYellow),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, petrobrasYellow)
             ) {
-                Text("Redefinir Calibração de Íris/Face ID")
+                Text("Redefinir Calibração de Íris/Face ID", fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
