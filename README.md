@@ -1,7 +1,7 @@
 # Projeto Krytos 🛡️👁️
 
 ## 📝 Sobre o Projeto
-O **Projeto Krytos** é um software de inteligência e segurança de última geração, desenvolvido para integrar a **autenticação biométrica de íris** diretamente ao fluxo de trabalho dos óculos de Realidade Aumentada (RA).
+O **Projeto Krytos** é um software de inteligência e segurança, desenvolvido para integrar a **autenticação biométrica de íris** diretamente ao fluxo de trabalho dos óculos de Realidade Aumentada (RA).
 
 Nossa solução vai além de um login convencional. Estabelecemos um ecossistema seguro e confiável que acessa sistemas de IA corporativos com:
 * **Autenticação por Íris:** Monitoramento contínuo de quem está operando o dispositivo.
