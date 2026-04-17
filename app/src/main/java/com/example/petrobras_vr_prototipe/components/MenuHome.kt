@@ -1,18 +1,14 @@
 package com.example.petrobras_vr_prototipe.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
-import androidx.compose.foundation.BorderStroke
 import com.example.petrobras_vr_prototipe.R
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -21,8 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,94 +28,102 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.petrobras_vr_prototipe.screens.VrAppState
 
 @Composable
-fun MenuHome(onNavigate: (VrAppState) -> Unit) {
-
+fun MenuHome(
+    isNetworkingOpen: Boolean,
+    isTasksOpen: Boolean,
+    isSettingsOpen: Boolean,
+    onNavigate: (VrAppState) -> Unit
+) {
     var visible by remember { mutableStateOf(false) }
 
+    // Verde Petrobras para os botões ativos
+    val activeColor = Color(0xFF008A52)
+    val inactiveColor = Color.Transparent
+
     LaunchedEffect(Unit) {
-        visible = true // Ativa assim que entra na tela
+        visible = true
     }
 
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessLow)) +
                 scaleIn(initialScale = 0.8f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)) +
-                slideInVertically(initialOffsetY = { it / 2 }), // Vem um pouco de baixo
+                slideInVertically(initialOffsetY = { it / 2 }),
     ) {
-
-    Row(
-        modifier = Modifier.graphicsLayer(
-            rotationY = 15f,
-            rotationX = -10f,
-            cameraDistance = 12f
-        )
-            .padding(horizontal = 16.dp)
-            .width(315.dp)
-            .height(50.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color.White)
-            .padding(15.dp, vertical = 15.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-
-    ) {
-        Image(
-            painter = painterResource(R.drawable.icone_petrobras),
-            contentDescription = "Icone Petrobras",
-            modifier = Modifier.size(40.dp)
-        )
-        Row(modifier = Modifier.clickable { onNavigate(VrAppState.TASKS) ; Modifier.background(Color(
-            103,
-            103,
-            103,
-            255
-        )
-        ) }, horizontalArrangement = Arrangement.Center , verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.graphicsLayer(
+                rotationY = 15f,
+                rotationX = -10f,
+                cameraDistance = 12f
+            )
+                .padding(horizontal = 16.dp)
+                // Aumentei a largura e altura para caber os ícones maiores
+                .width(360.dp)
+                .height(70.dp)
+                .clip(RoundedCornerShape(25.dp))
+                .background(Color.White)
+                .padding(horizontal = 20.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             Image(
-                painter = painterResource(R.drawable.icone_tarefas),
-                contentDescription = "Icone Tarefas",
-                modifier = Modifier.size(40.dp)
+                painter = painterResource(R.drawable.icone_petrobras),
+                contentDescription = "Icone Petrobras",
+                modifier = Modifier.size(40.dp) // Tamanho aumentado
             )
-            Icon(
-                painter = painterResource(id = R.drawable.icone_down_arrow),
-                contentDescription = "Descrição do ícone",
-                modifier = Modifier.size(10.dp),
-                tint = Color.Unspecified
-            )
-        }
-        Row(modifier = Modifier.clickable { onNavigate(VrAppState.NETWORKING) },horizontalArrangement = Arrangement.Center , verticalAlignment = Alignment.CenterVertically)  {
-            Image(
-                painter = painterResource(R.drawable.icone_networking),
-                contentDescription = "Icone Networking",
-                modifier = Modifier.size(40.dp)
-            )
-            Icon(
-                painter = painterResource(id = R.drawable.icone_down_arrow),
-                contentDescription = "Descrição do ícone",
-                modifier = Modifier.size(10.dp),
-                tint = Color.Unspecified
-            )
-        }
-        Row(modifier = Modifier.clickable { onNavigate(VrAppState.SETTINGS) } ,horizontalArrangement = Arrangement.Center , verticalAlignment = Alignment.CenterVertically)  {
-            Image(
-                painter = painterResource(R.drawable.icone_settings),
-                contentDescription = "Icone Configurações",
-                modifier = Modifier.size(40.dp)
-            )
-            Icon(
-                painter = painterResource(id = R.drawable.icone_down_arrow),
-                contentDescription = "Descrição do ícone",
-                modifier = Modifier.size(10.dp),
-                tint = Color.Unspecified
-            )
-        }
 
+            // Botão Tarefas
+            Row(modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (isTasksOpen) activeColor else inactiveColor)
+                .clickable { onNavigate(VrAppState.TASKS) }
+                .padding(8.dp), // Padding interno do quadrado verde aumentado
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.icone_tarefas),
+                    contentDescription = "Icone Tarefas",
+                    modifier = Modifier.size(40.dp) // Tamanho aumentado
+                )
+            }
 
+            // Botão Networking
+            Row(modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (isNetworkingOpen) activeColor else inactiveColor)
+                .clickable { onNavigate(VrAppState.NETWORKING) }
+                .padding(8.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.icone_networking),
+                    contentDescription = "Icone Networking",
+                    modifier = Modifier.size(40.dp) // Tamanho aumentado
+                )
+            }
+
+            // Botão Settings
+            Row(modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (isSettingsOpen) activeColor else inactiveColor)
+                .clickable { onNavigate(VrAppState.SETTINGS) }
+                .padding(8.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.icone_settings),
+                    contentDescription = "Icone Configurações",
+                    modifier = Modifier.size(40.dp) // Tamanho aumentado
+                )
+            }
+        }
     }
-}}
+}
