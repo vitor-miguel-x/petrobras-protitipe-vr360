@@ -1,5 +1,13 @@
 package com.example.petrobras_vr_prototipe.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
 import com.example.petrobras_vr_prototipe.R
 import androidx.compose.foundation.Image
@@ -16,6 +24,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,6 +41,20 @@ import com.example.petrobras_vr_prototipe.screens.VrAppState
 
 @Composable
 fun MenuHome(onNavigate: (VrAppState) -> Unit) {
+
+    var visible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        visible = true // Ativa assim que entra na tela
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessLow)) +
+                scaleIn(initialScale = 0.8f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)) +
+                slideInVertically(initialOffsetY = { it / 2 }), // Vem um pouco de baixo
+    ) {
+
     Row(
         modifier = Modifier.graphicsLayer(
             rotationY = 15f,
@@ -49,7 +76,13 @@ fun MenuHome(onNavigate: (VrAppState) -> Unit) {
             contentDescription = "Icone Petrobras",
             modifier = Modifier.size(40.dp)
         )
-        Row(modifier = Modifier.clickable { onNavigate(VrAppState.TASKS) }, horizontalArrangement = Arrangement.Center , verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.clickable { onNavigate(VrAppState.TASKS) ; Modifier.background(Color(
+            103,
+            103,
+            103,
+            255
+        )
+        ) }, horizontalArrangement = Arrangement.Center , verticalAlignment = Alignment.CenterVertically) {
             Image(
                 painter = painterResource(R.drawable.icone_tarefas),
                 contentDescription = "Icone Tarefas",
@@ -75,7 +108,7 @@ fun MenuHome(onNavigate: (VrAppState) -> Unit) {
                 tint = Color.Unspecified
             )
         }
-        Row(horizontalArrangement = Arrangement.Center , verticalAlignment = Alignment.CenterVertically)  {
+        Row(modifier = Modifier.clickable { onNavigate(VrAppState.SETTINGS) } ,horizontalArrangement = Arrangement.Center , verticalAlignment = Alignment.CenterVertically)  {
             Image(
                 painter = painterResource(R.drawable.icone_settings),
                 contentDescription = "Icone Configurações",
@@ -91,4 +124,4 @@ fun MenuHome(onNavigate: (VrAppState) -> Unit) {
 
 
     }
-}
+}}

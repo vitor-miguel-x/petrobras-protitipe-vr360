@@ -1,8 +1,10 @@
 package com.example.petrobras_vr_prototipe.screens
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -15,6 +17,12 @@ import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -32,6 +40,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.petrobras_vr_prototipe.R
 import com.example.petrobras_vr_prototipe.components.IrisAuthOverlay
 import com.example.petrobras_vr_prototipe.components.MenuHome
+import com.example.petrobras_vr_prototipe.components.SettingsOverlay
 import com.example.petrobras_vr_prototipe.components.WelcomeMessageOverlay
 import com.example.petrobras_vr_prototipe.model.EyeAnalyzer
 import com.example.petrobras_vr_prototipe.util.BiometricUtils
@@ -42,7 +51,50 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 enum class VrAppState {
-    AUTHENTICATING, WELCOME, AR_IDLE, NETWORKING, TASKS
+    AUTHENTICATING, WELCOME, AR_IDLE, NETWORKING, TASKS, SETTINGS
+}
+
+val audioMap = mapOf(
+    "abrindo_rede" to R.raw.abrindo_ambiente_rede,
+    "analisando_sensores" to R.raw.analizando_dados_sensores, // Nome do arquivo com 'z'
+    "buscando_corp" to R.raw.buscando_dados_corporativo,
+    "com_certeza" to R.raw.com_certeza,
+    "conexao_instavel" to R.raw.conexao_instavel_detect,
+    "consulta_ok" to R.raw.consulta_concluida,
+    "consultando_gemini" to R.raw.consultando_infos_gemini,
+    "erro_inconsistencia" to R.raw.detectei_inconsistencia,
+    "conexao_rede" to R.raw.estabelecendo_conexao_rede_corporativa,
+    "cuidando_disso" to R.raw.estou_cuidando_disso_para_voce,
+    "exibindo_tarefas" to R.raw.exibindo_tarefa_pendentes,
+    "multiplas_fontes" to R.raw.indentifiquei_multiplas_fontes, // Nome do arquivo com 'n'
+    "lembrete_ok" to R.raw.lembrete_configurado,
+    "nenhum_erro" to R.raw.nenhum_erro_encontrado,
+    "nova_atividade" to R.raw.nova_atividade_registrada,
+    "organizando_agenda" to R.raw.organizando_agenda_corporativa,
+    "priorizando_prazos" to R.raw.priorizando_atividade_corformee_prazos_definidos, // Nome exato
+    "procedimento_padrao" to R.raw.procedimento_padrao,
+    "recursos_tela" to R.raw.recursos_disponiveis_tela,
+    "sessao_ok" to R.raw.sessao_autenticada,
+    "sincronizando" to R.raw.sincronizando_base_dados,
+    "instante" to R.raw.so_um_instante,
+    "validando_dados" to R.raw.validando_integridade_dados,
+    "tarefas_pendentes" to R.raw.voce_possui_tarefas_pendentes
+)
+
+fun falar(context: Context, tts: TextToSpeech?, audioResId: Int?, textoBackup: String) {
+    if (audioResId != null) {
+        try {
+            val mediaPlayer = MediaPlayer.create(context, audioResId)
+            mediaPlayer.setOnCompletionListener { it.release() } // Libera a memória após tocar
+            mediaPlayer.start()
+        } catch (e: Exception) {
+            // Se o arquivo falhar por algum motivo, usa o TTS como backup
+            tts?.speak(textoBackup, TextToSpeech.QUEUE_FLUSH, null, null)
+        }
+    } else {
+        // Se passarmos null (não há áudio correspondente), usa o TTS padrão
+        tts?.speak(textoBackup, TextToSpeech.QUEUE_FLUSH, null, null)
+    }
 }
 
 @Composable
@@ -82,9 +134,10 @@ fun CameraScreen(
 
                 val biometricManager = BiometricManager.from(context)
                 when (biometricManager.canAuthenticate(BIOMETRIC_STRONG)) {
-                    BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> tts?.speak("Brás informando: Sem sensores de Face ID.", TextToSpeech.QUEUE_FLUSH, null, null)
-                    BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> tts?.speak("Configure sua biometria.", TextToSpeech.QUEUE_FLUSH, null, null)
-                    BiometricManager.BIOMETRIC_SUCCESS -> tts?.speak("Sistemas prontos.", TextToSpeech.QUEUE_FLUSH, null, null)
+                    // Mantive o Fallback (null) para mensagens de erro de hardware
+                    BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> falar(context, tts, null, "Brás informando: Sem sensores de Face ID.")
+                    BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> falar(context, tts, null, "Configure sua biometria.")
+                    BiometricManager.BIOMETRIC_SUCCESS -> falar(context, tts, audioMap["validando_dados"], "Sistemas prontos.")
                 }
             }
         }
@@ -124,19 +177,31 @@ fun CameraScreen(
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION) ?: return
                 val text = matches.joinToString(" ").lowercase()
 
-                if (text.contains("brás") || text.contains("braz")) {
+                // Gatilhos de ativação expandidos
+                if (text.contains("brás") || text.contains("braz") || text.contains("assistente")) {
                     when {
-                        text.contains("networking") || text.contains("bate-papo") -> {
-                            tts?.speak("Abrindo Networking.", TextToSpeech.QUEUE_FLUSH, null, null)
+                        text.contains("networking") || text.contains("rede") || text.contains("bate-papo") || text.contains("conexão") -> {
+                            falar(context, tts, audioMap["abrindo_rede"], "Abrindo Networking.")
                             currentAppState = VrAppState.NETWORKING
                         }
-                        text.contains("tarefa") || text.contains("agenda") -> {
-                            tts?.speak("Exibindo tarefas.", TextToSpeech.QUEUE_FLUSH, null, null)
+                        text.contains("tarefa") || text.contains("tarefas") || text.contains("agenda") || text.contains("atividades") -> {
+                            falar(context, tts, audioMap["exibindo_tarefas"], "Exibindo tarefas.")
                             currentAppState = VrAppState.TASKS
                         }
-                        text.contains("fechar") || text.contains("sair") -> {
-                            tts?.speak("Minimizando interfaces.", TextToSpeech.QUEUE_FLUSH, null, null)
+                        text.contains("fechar") || text.contains("sair") || text.contains("minimizar") || text.contains("ocultar") -> {
+                            falar(context, tts, null, "Minimizando interfaces.")
                             currentAppState = VrAppState.AR_IDLE
+                        }
+                        text.contains("status") || text.contains("sensores") || text.contains("diagnóstico") -> {
+                            falar(context, tts, audioMap["analisando_sensores"], "Analisando dados dos sensores.")
+                        }
+                        text.contains("configurações") || text.contains("ajustes") || text.contains("sistema") || text.contains("opções") -> {
+                            falar(context, tts, audioMap["recursos_tela"], "Abrindo painel de configurações.")
+                            currentAppState = VrAppState.SETTINGS
+                        }
+                        else -> {
+                            // Feedback para o usuário saber que a IA o ouviu, mas não identificou o comando
+                            falar(context, tts, null, "Comando não reconhecido. Pode repetir?")
                         }
                     }
                 }
@@ -144,7 +209,6 @@ fun CameraScreen(
                 speechRecognizer.startListening(intent)
             }
             override fun onError(error: Int) {
-                // Evita loops infinitos de erro reiniciando com delay se necessário
                 speechRecognizer.startListening(intent)
             }
             override fun onReadyForSpeech(p0: Bundle?) {}
@@ -181,18 +245,29 @@ fun CameraScreen(
                                 activity = fragmentActivity,
                                 onSucesso = {
                                     isCameraPaused = false
-                                    tts?.speak("Identidade confirmada.", TextToSpeech.QUEUE_FLUSH, null, null)
+                                    falar(
+                                        context,
+                                        tts,
+                                        audioMap["sessao_ok"],
+                                        "Identidade confirmada."
+                                    )
                                     currentAppState = VrAppState.WELCOME
                                 },
                                 onError = {
                                     isCameraPaused = false
-                                    tts?.speak("Falha na identificação.", TextToSpeech.QUEUE_FLUSH, null, null)
+                                    falar(
+                                        context,
+                                        tts,
+                                        audioMap["erro_inconsistencia"],
+                                        "Falha na identificação."
+                                    )
                                 }
                             )
                         }
                     }
                 }
             }
+
             VrAppState.WELCOME -> {
                 LaunchedEffect(Unit) {
                     delay(3000)
@@ -200,27 +275,131 @@ fun CameraScreen(
                 }
                 WelcomeMessageOverlay()
             }
+            // Concentramos todas as janelas AR no else para compartilhar o fundo e as animações
             else -> {
-                Box(modifier = Modifier.fillMaxSize().padding(horizontal = 25.dp, vertical = 40.dp)) {
-                    Box(modifier = Modifier.align(Alignment.BottomStart)) {
-                        MenuHome(onNavigate = { novoEstado ->
-                            // 1. Atualiza o estado da tela
-                            currentAppState = novoEstado
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 25.dp, vertical = 40.dp)
+                ) {
 
-                            // 2. Dispara o áudio correspondente ao clique manual
-                            when (novoEstado) {
-                                VrAppState.NETWORKING -> tts?.speak("Abrindo Networking.", TextToSpeech.QUEUE_FLUSH, null, null)
-                                VrAppState.TASKS -> tts?.speak("Exibindo tarefas.", TextToSpeech.QUEUE_FLUSH, null, null)
-                                VrAppState.AR_IDLE -> tts?.speak("Minimizando interfaces.", TextToSpeech.QUEUE_FLUSH, null, null)
-                                else -> {}
+                    // MENU HOME (Fica sempre visível no fundo)
+                    Box(modifier = Modifier.align(Alignment.BottomStart)) {
+                        MenuHome(
+                            onNavigate = { novoEstado ->
+                                currentAppState = novoEstado
+
+                                when (novoEstado) {
+                                    VrAppState.NETWORKING -> falar(
+                                        context,
+                                        tts,
+                                        audioMap["abrindo_rede"],
+                                        "Abrindo Networking."
+                                    )
+
+                                    VrAppState.TASKS -> falar(
+                                        context,
+                                        tts,
+                                        audioMap["exibindo_tarefas"],
+                                        "Exibindo tarefas."
+                                    )
+
+                                    VrAppState.SETTINGS -> falar(
+                                        context,
+                                        tts,
+                                        audioMap["recursos_tela"],
+                                        "Abrindo painel de configurações."
+                                    )
+
+                                    VrAppState.AR_IDLE -> falar(
+                                        context,
+                                        tts,
+                                        null,
+                                        "Minimizando interfaces."
+                                    )
+
+                                    else -> {}
+                                }
                             }
-                        })
+                        )
                     }
-                    Column(modifier = Modifier.align(Alignment.BottomEnd), horizontalAlignment = Alignment.End) {
-                        if (currentAppState == VrAppState.NETWORKING && networkingBitmap != null) {
-                            Image(bitmap = networkingBitmap.asImageBitmap(), contentDescription = null, modifier = Modifier.size(350.dp).clickable { currentAppState = VrAppState.TASKS })
-                        } else if (currentAppState == VrAppState.TASKS && tasksBitmap != null) {
-                            Image(bitmap = tasksBitmap.asImageBitmap(), contentDescription = null, modifier = Modifier.size(400.dp).clickable { currentAppState = VrAppState.AR_IDLE })
+
+                    // JANELAS ANIMADAS (Networking e Tasks)
+                    Column(
+                        modifier = Modifier.align(Alignment.BottomEnd),
+                        horizontalAlignment = Alignment.End
+                    ) {
+
+                        AnimatedVisibility(
+                            visible = currentAppState == VrAppState.NETWORKING && networkingBitmap != null,
+                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(
+                                initialScale = 0.8f,
+                                animationSpec = tween(500)
+                            ),
+                            exit = fadeOut(animationSpec = tween(300)) + scaleOut(
+                                targetScale = 0.8f,
+                                animationSpec = tween(300)
+                            )
+                        ) {
+                            networkingBitmap?.let {
+                                Image(
+                                    bitmap = it.asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(350.dp)
+                                        .clickable { currentAppState = VrAppState.TASKS }
+                                )
+                            }
+                        }
+
+                        AnimatedVisibility(
+                            visible = currentAppState == VrAppState.TASKS && tasksBitmap != null,
+                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(
+                                initialScale = 0.8f,
+                                animationSpec = tween(500)
+                            ),
+                            exit = fadeOut(animationSpec = tween(300)) + scaleOut(
+                                targetScale = 0.8f,
+                                animationSpec = tween(300)
+                            )
+                        ) {
+                            tasksBitmap?.let {
+                                Image(
+                                    bitmap = it.asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(400.dp)
+                                        .clickable { currentAppState = VrAppState.AR_IDLE }
+                                )
+                            }
+                        }
+                    }
+
+                    // SETTINGS OVERLAY ANIMADO (Centralizado)
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopStart) {
+                        AnimatedVisibility(
+                            visible = currentAppState == VrAppState.SETTINGS,
+                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(
+                                initialScale = 0.8f,
+                                animationSpec = tween(500)
+                            ),
+                            exit = fadeOut(animationSpec = tween(300)) + scaleOut(
+                                targetScale = 0.8f,
+                                animationSpec = tween(300)
+                            )
+                        ) {
+                            SettingsOverlay(
+                                onClose = {
+                                    falar(context, tts, null, "Minimizando configurações.")
+                                    currentAppState = VrAppState.AR_IDLE
+                                },
+                                onResetBiometrics = {
+                                    falar(
+                                        context,
+                                        tts,
+                                        audioMap["procedimento_padrao"],
+                                        "Iniciando recalibração biométrica."
+                                    )
+                                    currentAppState =
+                                        VrAppState.AUTHENTICATING // Volta pra tela de login
+                                }
+                            )
                         }
                     }
                 }

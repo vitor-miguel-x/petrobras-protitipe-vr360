@@ -7,7 +7,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.FragmentActivity
+import com.example.petrobras_vr_prototipe.components.AppNavigator
 import com.example.petrobras_vr_prototipe.screens.CameraScreen
+import com.example.petrobras_vr_prototipe.screens.LoadingScreenApp
 import com.example.petrobras_vr_prototipe.ui.theme.PetrobrasVrPrototipeTheme
 
 class MainActivity : FragmentActivity() {
@@ -26,7 +28,7 @@ class MainActivity : FragmentActivity() {
         setContent {
             PetrobrasVrPrototipeTheme {
                 // A CameraScreen agora é a única responsável por gerenciar seu próprio estado de login
-                CameraScreen()
+                AppNavigator()
             }
         }
     }
