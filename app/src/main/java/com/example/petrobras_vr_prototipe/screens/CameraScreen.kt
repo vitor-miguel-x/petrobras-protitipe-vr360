@@ -66,6 +66,7 @@ import com.example.petrobras_vr_prototipe.components.IrisAuthOverlay
 import com.example.petrobras_vr_prototipe.components.MenuHome
 import com.example.petrobras_vr_prototipe.components.NfcReadingOverlay
 import com.example.petrobras_vr_prototipe.components.SettingsOverlay
+import com.example.petrobras_vr_prototipe.components.SmartCameraPreview
 import com.example.petrobras_vr_prototipe.components.WelcomeMessageOverlay
 import com.example.petrobras_vr_prototipe.model.EyeAnalyzer
 import com.example.petrobras_vr_prototipe.util.BiometricUtils
@@ -113,6 +114,8 @@ val audioMap = mapOf(
     "atualizando_realtime" to R.raw.atualizando_informacoes_em_tempo_real,
 )
 
+var currentMediaPlayer: MediaPlayer? = null
+
 fun falar(
     context: Context,
     tts: TextToSpeech?,
@@ -120,13 +123,21 @@ fun falar(
     textoBackup: String,
     onSpeakStateChange: (String) -> Unit
 ) {
+    // 1. Para e limpa qualquer áudio que esteja tocando agora
+    currentMediaPlayer?.stop()
+    currentMediaPlayer?.release()
+    currentMediaPlayer = null
+
     onSpeakStateChange(textoBackup)
 
     if (audioResId != null) {
         try {
             val mediaPlayer = MediaPlayer.create(context, audioResId)
+            currentMediaPlayer = mediaPlayer // Salva a referência global
+
             mediaPlayer.setOnCompletionListener {
                 it.release()
+                if (currentMediaPlayer == it) currentMediaPlayer = null
                 onSpeakStateChange("")
             }
             mediaPlayer.start()
@@ -187,6 +198,15 @@ fun CameraScreen(
 
     var rawSensorYaw by remember { mutableFloatStateOf(0f) }
     var rawSensorPitch by remember { mutableFloatStateOf(0f) }
+
+    var cursorOffsetNormalizado by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    var isClicking by remember { mutableStateOf(false) }
+    var wasClicking by remember { mutableStateOf(false) }
+
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val screenWidth = remember(configuration) { with(density) { configuration.screenWidthDp.dp.toPx() } }
+    val screenHeight = remember(configuration) { with(density) { configuration.screenHeightDp.dp.toPx() } }
 
     val smoothYaw by animateFloatAsState(
         targetValue = rawSensorYaw,
@@ -474,7 +494,38 @@ fun CameraScreen(
         if (hasCameraPermission && !isCameraPaused) {
             SmartCameraPreview(
                 isFrontCamera = (currentAppState == VrAppState.AUTHENTICATING),
-                onEyeDetectedState = { id -> detectedFaceId = id }
+                onEyeDetectedState = { id -> detectedFaceId = id },
+                onHandTrackingUpdate = { offset, clicando ->
+                    cursorOffsetNormalizado = androidx.compose.ui.geometry.Offset(offset.x, offset.y)
+
+                    if (clicando && !wasClicking) {
+                        val x = cursorOffsetNormalizado.x
+
+                        when {
+                            // Se clicar na ESQUERDA abre Networking
+                            x < 0.33f -> {
+                                isNetworkingOpen = !isNetworkingOpen
+                                isTasksOpen = false
+                                isSettingsOpen = false
+                            }
+                            // SE CLICAR NO MEIO abre CONFIGURAÇÕES (Ajustado com base no seu erro)
+                            x in 0.33f..0.66f -> {
+                                isSettingsOpen = !isSettingsOpen
+                                isTasksOpen = false
+                                isNetworkingOpen = false
+                            }
+                            // SE CLICAR NA DIREITA abre TAREFAS
+                            x > 0.66f -> {
+                                isTasksOpen = !isTasksOpen
+                                isSettingsOpen = false
+                                isNetworkingOpen = false
+                            }
+                        }
+                        snapWindowsToCenter()
+                    }
+                    isClicking = clicando
+                    wasClicking = clicando
+                }
             )
         }
 
@@ -731,57 +782,22 @@ fun CameraScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun SmartCameraPreview(isFrontCamera: Boolean, onEyeDetectedState: (Int?) -> Unit) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            try {
-                val cameraProvider = cameraProviderFuture.get()
-                cameraProvider.unbindAll()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+        if (currentAppState != VrAppState.AUTHENTICATING && currentAppState != VrAppState.NFC_READING) {
+            Box(
+                modifier = Modifier
+                    .offset {
+                        androidx.compose.ui.unit.IntOffset(
+                            x = (cursorOffsetNormalizado.x * screenWidth).toInt(),
+                            y = (cursorOffsetNormalizado.y * screenHeight).toInt()
+                        )
+                    }
+                    .size(30.dp)
+                    .background(
+                        color = if (isClicking) Color.Green else Color.Cyan,
+                        shape = CircleShape
+                    )
+                    .border(2.dp, Color.White, CircleShape)
+            )
         }
     }
-
-    AndroidView(
-        modifier = Modifier.fillMaxSize(),
-        factory = { ctx ->
-            PreviewView(ctx).apply {
-                implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-            }
-        },
-        update = { previewView ->
-            val executor = ContextCompat.getMainExecutor(context)
-            cameraProviderFuture.addListener({
-                val cameraProvider = cameraProviderFuture.get()
-                cameraProvider.unbindAll()
-                val preview = Preview.Builder().build()
-                    .also { it.surfaceProvider = previewView.surfaceProvider }
-                val selector =
-                    if (isFrontCamera) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
-
-                if (isFrontCamera) {
-                    val analyzer = ImageAnalysis.Builder()
-                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                        .build().also {
-                            it.setAnalyzer(
-                                executor,
-                                EyeAnalyzer { id -> onEyeDetectedState(id) })
-                        }
-                    cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview, analyzer)
-                } else {
-                    cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview)
-                }
-            }, executor)
-        }
-    )
 }
-

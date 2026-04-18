@@ -37,6 +37,13 @@ android {
     buildFeatures {
         compose = true
     }
+    sourceSets {
+        getByName("main") {
+            assets {
+                srcDirs("src\\main\\assets", "src\\main\\assets")
+            }
+        }
+    }
 }
 
 dependencies {
@@ -70,4 +77,5 @@ dependencies {
     implementation("io.github.sceneview:arsceneview:2.1.0")
     implementation("io.coil-kt:coil-compose:2.5.0")
     implementation("io.coil-kt:coil-gif:2.5.0")
+    implementation("com.google.mediapipe:tasks-vision:0.10.14")
 }
