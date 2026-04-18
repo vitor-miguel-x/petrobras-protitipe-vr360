@@ -80,7 +80,6 @@ enum class VrAppState {
     AUTHENTICATING, WELCOME, AR_IDLE, NETWORKING, TASKS, SETTINGS, NFC_READING
 }
 
-// Mapa de Áudios Mantido igual
 val audioMap = mapOf(
     "abrindo_rede" to R.raw.abrindo_ambiente_rede,
     "analisando_sensores" to R.raw.analizando_dados_sensores,
@@ -151,6 +150,7 @@ private fun falarComTTS(
         override fun onDone(utteranceId: String?) {
             onSpeakStateChange("")
         }
+
         override fun onError(utteranceId: String?) {
             onSpeakStateChange("")
         }
@@ -172,7 +172,6 @@ fun CameraScreen(
     var isCameraPaused by remember { mutableStateOf(false) }
     var detectedFaceId by remember { mutableStateOf<Int?>(null) }
 
-    // ESTADO INICIAL ALTERADO PARA NFC_READING
     var currentAppState by remember { mutableStateOf<VrAppState>(VrAppState.NFC_READING) }
 
     var isNetworkingOpen by remember { mutableStateOf(false) }
@@ -189,8 +188,16 @@ fun CameraScreen(
     var rawSensorYaw by remember { mutableFloatStateOf(0f) }
     var rawSensorPitch by remember { mutableFloatStateOf(0f) }
 
-    val smoothYaw by animateFloatAsState(targetValue = rawSensorYaw, animationSpec = tween(150), label = "smoothYaw")
-    val smoothPitch by animateFloatAsState(targetValue = rawSensorPitch, animationSpec = tween(150), label = "smoothPitch")
+    val smoothYaw by animateFloatAsState(
+        targetValue = rawSensorYaw,
+        animationSpec = tween(150),
+        label = "smoothYaw"
+    )
+    val smoothPitch by animateFloatAsState(
+        targetValue = rawSensorPitch,
+        animationSpec = tween(150),
+        label = "smoothPitch"
+    )
 
     fun snapWindowsToCenter() {
         if (!isNetworkingOpen && !isTasksOpen && !isSettingsOpen) {
@@ -207,7 +214,8 @@ fun CameraScreen(
         val sensorEventListener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent?) {
                 if (event?.sensor?.type == Sensor.TYPE_GAME_ROTATION_VECTOR ||
-                    event?.sensor?.type == Sensor.TYPE_ROTATION_VECTOR) {
+                    event?.sensor?.type == Sensor.TYPE_ROTATION_VECTOR
+                ) {
 
                     val rotationMatrix = FloatArray(9)
                     SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
@@ -223,8 +231,10 @@ fun CameraScreen(
                     val orientationAngles = FloatArray(3)
                     SensorManager.getOrientation(remappedMatrix, orientationAngles)
 
-                    val currentYawDegrees = Math.toDegrees(orientationAngles[0].toDouble()).toFloat()
-                    val currentPitchDegrees = Math.toDegrees(orientationAngles[1].toDouble()).toFloat()
+                    val currentYawDegrees =
+                        Math.toDegrees(orientationAngles[0].toDouble()).toFloat()
+                    val currentPitchDegrees =
+                        Math.toDegrees(orientationAngles[1].toDouble()).toFloat()
 
                     if (lastYaw.isNaN()) {
                         lastYaw = currentYawDegrees
@@ -244,15 +254,36 @@ fun CameraScreen(
                     rawSensorPitch = currentPitchDegrees - initialPitch
                 }
             }
+
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
 
-        rotationSensor?.let { sensorManager.registerListener(sensorEventListener, it, SensorManager.SENSOR_DELAY_GAME) }
+        rotationSensor?.let {
+            sensorManager.registerListener(
+                sensorEventListener,
+                it,
+                SensorManager.SENSOR_DELAY_GAME
+            )
+        }
         onDispose { sensorManager.unregisterListener(sensorEventListener) }
     }
 
-    var hasAudioPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
-    var hasCameraPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) }
+    var hasAudioPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
 
     LaunchedEffect(Unit) {
@@ -261,14 +292,34 @@ fun CameraScreen(
             if (status == TextToSpeech.SUCCESS) {
                 tts?.language = Locale("pt", "BR")
                 val voices = tts?.voices
-                val maleVoice = voices?.find { it.name.lowercase().contains("male") || it.name.lowercase().contains("pt-br-x-afs-local") }
+                val maleVoice = voices?.find {
+                    it.name.lowercase().contains("male") || it.name.lowercase()
+                        .contains("pt-br-x-afs-local")
+                }
                 if (maleVoice != null) tts?.voice = maleVoice
 
                 val biometricManager = BiometricManager.from(context)
                 when (biometricManager.canAuthenticate(BIOMETRIC_STRONG)) {
-                    BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> falar(context, tts, null, "Brás informando: Sem sensores de Face ID.") { aiSpokenText = it }
-                    BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> falar(context, tts, null, "Configure sua biometria.") { aiSpokenText = it }
-                    BiometricManager.BIOMETRIC_SUCCESS -> falar(context, tts, audioMap["validando_dados"], "Sistemas prontos.") { aiSpokenText = it }
+                    BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> falar(
+                        context,
+                        tts,
+                        null,
+                        "Brás informando: Sem sensores de Face ID."
+                    ) { aiSpokenText = it }
+
+                    BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> falar(
+                        context,
+                        tts,
+                        null,
+                        "Configure sua biometria."
+                    ) { aiSpokenText = it }
+
+                    BiometricManager.BIOMETRIC_SUCCESS -> falar(
+                        context,
+                        tts,
+                        audioMap["validando_dados"],
+                        "Sistemas prontos."
+                    ) { aiSpokenText = it }
                 }
             }
         }
@@ -276,12 +327,20 @@ fun CameraScreen(
 
     DisposableEffect(Unit) { onDispose { tts?.stop(); tts?.shutdown() } }
 
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { perms ->
-        hasAudioPermission = perms[Manifest.permission.RECORD_AUDIO] ?: hasAudioPermission
-        hasCameraPermission = perms[Manifest.permission.CAMERA] ?: hasCameraPermission
-    }
+    val launcher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { perms ->
+            hasAudioPermission = perms[Manifest.permission.RECORD_AUDIO] ?: hasAudioPermission
+            hasCameraPermission = perms[Manifest.permission.CAMERA] ?: hasCameraPermission
+        }
 
-    LaunchedEffect(Unit) { launcher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)) }
+    LaunchedEffect(Unit) {
+        launcher.launch(
+            arrayOf(
+                Manifest.permission.CAMERA,
+                Manifest.permission.RECORD_AUDIO
+            )
+        )
+    }
 
     val networkingBitmap = rememberSafeBitmap(R.drawable.networking_screen, targetWidth = 800)
     val tasksBitmap = rememberSafeBitmap(R.drawable.tarefas_screen, targetWidth = 800)
@@ -290,54 +349,113 @@ fun CameraScreen(
         if (!hasAudioPermission) return@DisposableEffect onDispose {}
         val speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR")
         }
 
         val listener = object : RecognitionListener {
             override fun onResults(results: Bundle?) {
-                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION) ?: return
+                val matches =
+                    results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION) ?: return
                 val text = matches.joinToString(" ").lowercase()
 
                 if (text.contains("brás") || text.contains("braz")) {
                     when {
-                        text.contains("networking") || text.contains("bate-papo") || text.contains(" abrir bate-papo") || text.contains("Abrir networking")-> {
+                        text.contains("networking") || text.contains("bate-papo") || text.contains(" abrir bate-papo") || text.contains(
+                            "Abrir networking"
+                        ) -> {
                             snapWindowsToCenter()
                             isNetworkingOpen = true
-                            falar(context, tts, audioMap["sessao_networking"], "Abrindo sessão de networking.") { aiSpokenText = it }
+                            falar(
+                                context,
+                                tts,
+                                audioMap["sessao_networking"],
+                                "Abrindo sessão de networking."
+                            ) { aiSpokenText = it }
                         }
+
                         text.contains("diagnóstico") || text.contains("status") || text.contains("iniciar diagnóstico") -> {
-                            falar(context, tts, audioMap["executando_diagnostico"], "Executando diagnóstico do sistema.") { aiSpokenText = it }
+                            falar(
+                                context,
+                                tts,
+                                audioMap["executando_diagnostico"],
+                                "Executando diagnóstico do sistema."
+                            ) { aiSpokenText = it }
                             scope.launch {
                                 delay(3000)
-                                falar(context, tts, audioMap["resolvendo_eficiencia"], "Resolvido com eficiência.") { aiSpokenText = it }
+                                falar(
+                                    context,
+                                    tts,
+                                    audioMap["resolvendo_eficiencia"],
+                                    "Resolvido com eficiência."
+                                ) { aiSpokenText = it }
                             }
                         }
+
                         text.contains("atualizar") || text.contains("refresh") -> {
-                            falar(context, tts, audioMap["atualizando_realtime"], "Atualizando informações em tempo real.") { aiSpokenText = it }
+                            falar(
+                                context,
+                                tts,
+                                audioMap["atualizando_realtime"],
+                                "Atualizando informações em tempo real."
+                            ) { aiSpokenText = it }
                         }
-                        text.contains("tarefa") || text.contains("tarefas") || text.contains("abrir tarefas") || text.contains("abrir tarefa") || text.contains("agenda") || text.contains("working")  || text.contains("work")-> {
+
+                        text.contains("tarefa") || text.contains("tarefas") || text.contains("abrir tarefas") || text.contains(
+                            "abrir tarefa"
+                        ) || text.contains("agenda") || text.contains("working") || text.contains("work") -> {
                             snapWindowsToCenter()
                             isTasksOpen = true
-                            falar(context, tts, audioMap["exibindo_tarefas"], "Exibindo tarefas.") { aiSpokenText = it }
+                            falar(
+                                context,
+                                tts,
+                                audioMap["exibindo_tarefas"],
+                                "Exibindo tarefas."
+                            ) { aiSpokenText = it }
                         }
+
                         text.contains("fechar") || text.contains("sair") || text.contains("ocultar") -> {
                             isNetworkingOpen = false
                             isTasksOpen = false
                             isSettingsOpen = false
-                            falar(context, tts, null, "Minimizando interfaces.") { aiSpokenText = it }
+                            falar(context, tts, null, "Minimizando interfaces.") {
+                                aiSpokenText = it
+                            }
                         }
-                        text.contains("configurações") || text.contains("abrir configurações") || text.contains("ajustes") || text.contains("abrir ajustes") || text.contains("sistema") || text.contains("abrir sistema") -> {
+
+                        text.contains("configurações") || text.contains("abrir configurações") || text.contains(
+                            "ajustes"
+                        ) || text.contains("abrir ajustes") || text.contains("sistema") || text.contains(
+                            "abrir sistema"
+                        ) -> {
                             snapWindowsToCenter()
                             isSettingsOpen = true
-                            falar(context, tts, audioMap["recursos_tela"], "Abrindo painel de configurações.") { aiSpokenText = it }
+                            falar(
+                                context,
+                                tts,
+                                audioMap["recursos_tela"],
+                                "Abrindo painel de configurações."
+                            ) { aiSpokenText = it }
                         }
-                        else -> falar(context, tts, null, "Comando não reconhecido.") { aiSpokenText = it }
+
+                        else -> falar(
+                            context,
+                            tts,
+                            null,
+                            "Comando não reconhecido."
+                        ) { aiSpokenText = it }
                     }
                 }
                 speechRecognizer.startListening(intent)
             }
-            override fun onError(error: Int) { speechRecognizer.startListening(intent) }
+
+            override fun onError(error: Int) {
+                speechRecognizer.startListening(intent)
+            }
+
             override fun onReadyForSpeech(p0: Bundle?) {}
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(p0: Float) {}
@@ -361,12 +479,11 @@ fun CameraScreen(
         }
 
         when (currentAppState) {
-            // NOVO ESTADO E TELA ADICIONADOS AQUI
             VrAppState.NFC_READING -> {
                 NfcReadingOverlay()
 
                 LaunchedEffect(Unit) {
-                    delay(3000) // Simula o tempo de leitura do crachá
+                    delay(3000)
                     currentAppState = VrAppState.AUTHENTICATING
                 }
             }
@@ -381,12 +498,22 @@ fun CameraScreen(
                                 activity = fragmentActivity,
                                 onSucesso = {
                                     isCameraPaused = false
-                                    falar(context, tts, audioMap["sessao_ok"], "Identidade confirmada.") { aiSpokenText = it }
+                                    falar(
+                                        context,
+                                        tts,
+                                        audioMap["sessao_ok"],
+                                        "Identidade confirmada."
+                                    ) { aiSpokenText = it }
                                     currentAppState = VrAppState.WELCOME
                                 },
                                 onError = {
                                     isCameraPaused = false
-                                    falar(context, tts, audioMap["erro_inconsistencia"], "Falha na identificação.") { aiSpokenText = it }
+                                    falar(
+                                        context,
+                                        tts,
+                                        audioMap["erro_inconsistencia"],
+                                        "Falha na identificação."
+                                    ) { aiSpokenText = it }
                                 }
                             )
                         }
@@ -400,43 +527,139 @@ fun CameraScreen(
             }
 
             else -> {
-                Box(modifier = Modifier.fillMaxSize().padding(horizontal = 25.dp, vertical = 40.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 25.dp, vertical = 40.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .offset(y = 150.dp)
+                            .graphicsLayer {
+                                translationX = -((smoothYaw - anchorYaw) * 20f)
+                                translationY =
+                                    -((smoothPitch - anchorPitch) * 15f).coerceIn(-400f, 400f)
+                            },
+                        horizontalArrangement = Arrangement.spacedBy(40.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
 
-                    // ====== COMPONENTE DA IA (NOVO LAYOUT) ======
+                        AnimatedVisibility(
+                            visible = isNetworkingOpen && networkingBitmap != null,
+                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(
+                                initialScale = 0.8f,
+                                animationSpec = tween(500)
+                            ),
+                            exit = fadeOut(animationSpec = tween(300)) + scaleOut(
+                                targetScale = 0.8f,
+                                animationSpec = tween(300)
+                            )
+                        ) {
+                            networkingBitmap?.let {
+                                Image(
+                                    bitmap = it.asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(350.dp)
+                                        .clickable { isNetworkingOpen = false }
+                                )
+                            }
+                        }
+
+                        AnimatedVisibility(
+                            visible = isTasksOpen && tasksBitmap != null,
+                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(
+                                initialScale = 0.8f,
+                                animationSpec = tween(500)
+                            ),
+                            exit = fadeOut(animationSpec = tween(300)) + scaleOut(
+                                targetScale = 0.8f,
+                                animationSpec = tween(300)
+                            )
+                        ) {
+                            tasksBitmap?.let {
+                                Image(
+                                    bitmap = it.asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(400.dp)
+                                        .clickable { isTasksOpen = false }
+                                )
+                            }
+                        }
+
+                        AnimatedVisibility(
+                            visible = isSettingsOpen,
+                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(
+                                initialScale = 0.8f,
+                                animationSpec = tween(500)
+                            ),
+                            exit = fadeOut(animationSpec = tween(300)) + scaleOut(
+                                targetScale = 0.8f,
+                                animationSpec = tween(300)
+                            )
+                        ) {
+                            Box(modifier = Modifier.width(350.dp)) {
+                                SettingsOverlay(
+                                    onClose = {
+                                        isSettingsOpen = false
+                                        falar(
+                                            context,
+                                            tts,
+                                            null,
+                                            "Minimizando configurações."
+                                        ) { aiSpokenText = it }
+                                    },
+                                    onResetBiometrics = {
+                                        falar(
+                                            context,
+                                            tts,
+                                            audioMap["procedimento_padrao"],
+                                            "Iniciando recalibração biométrica."
+                                        ) { aiSpokenText = it }
+                                        currentAppState = VrAppState.AUTHENTICATING
+                                    }
+                                )
+                            }
+                        }
+                    }
+
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
-                            .padding(bottom = 120.dp) // Posiciona o Brás pouco acima do MenuHome
+                            .padding(bottom = 120.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.Bottom,
                             modifier = Modifier.wrapContentSize()
                         ) {
 
-                            // Container do Brás (garante o mesmo tamanho e formato circular para ambos)
                             Box(
                                 modifier = Modifier
-                                    .size(75.dp) // Tamanho fixo para a área circular
-                                    .clip(CircleShape) // Arredonda a área total
-                                    .border(3.dp, Color(0xFF00E5FF), CircleShape), // Borda neon ciano do mockup
+                                    .size(75.dp)
+                                    .clip(CircleShape)
+                                    .border(3.dp, Color(0xFF00E5FF), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (aiSpokenText.isEmpty()) {
                                     Image(
                                         painter = painterResource(id = R.drawable.bras_static),
                                         contentDescription = "Brás Ocioso",
-                                        contentScale = ContentScale.Crop, // Faz preencher perfeitamente a CircleShape
-                                        modifier = Modifier.fillMaxSize().padding(3.dp).background(Color.White)
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(3.dp)
+                                            .background(Color.White)
                                     )
                                 } else {
                                     AiAssistantSprite(
                                         texto = aiSpokenText,
-                                        modifier = Modifier.fillMaxSize() // Faz o GIF preencher toda a Box arredondada
+                                        modifier = Modifier.fillMaxSize()
                                     )
                                 }
                             }
 
-                            // Balão de texto estilizado rolando a partir da lateral do Brás
                             AnimatedVisibility(
                                 visible = aiSpokenText.isNotEmpty(),
                                 enter = expandHorizontally(
@@ -453,13 +676,13 @@ fun CameraScreen(
                                         topStart = 16.dp,
                                         topEnd = 16.dp,
                                         bottomEnd = 16.dp,
-                                        bottomStart = 2.dp // Formato de balão
+                                        bottomStart = 2.dp
                                     ),
                                     color = Color.White.copy(alpha = 0.95f),
                                     shadowElevation = 8.dp,
                                     modifier = Modifier
                                         .padding(start = 12.dp, bottom = 10.dp)
-                                        .widthIn(max = 280.dp) // Largura restrita para não ocupar a tela toda
+                                        .widthIn(max = 280.dp)
                                 ) {
                                     Column(
                                         modifier = Modifier.padding(16.dp)
@@ -467,14 +690,14 @@ fun CameraScreen(
                                         Text(
                                             text = "Assistente Brás",
                                             style = TextStyle(
-                                                color = Color(0xFF008542), // Verde Petrobras (Baseado na UI da imagem)
+                                                color = Color(0xFF008542),
                                                 fontSize = 16.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = aiSpokenText, // Renderiza a fala ativa sem instruções como "Ok Bras"
+                                            text = aiSpokenText,
                                             style = TextStyle(
                                                 color = Color.DarkGray,
                                                 fontSize = 15.sp,
@@ -486,101 +709,24 @@ fun CameraScreen(
                             }
                         }
                     }
-                    // ============================================
 
-                    // MENU HOME NO CANTO INFERIOR
                     Box(modifier = Modifier.align(Alignment.BottomStart)) {
                         MenuHome(
                             isNetworkingOpen = isNetworkingOpen,
                             isTasksOpen = isTasksOpen,
                             isSettingsOpen = isSettingsOpen,
                             onNavigate = { abaClicada ->
-                                snapWindowsToCenter() // Puxa para a frente do usuário
-                                when (abaClicada) {
-                                    VrAppState.NETWORKING -> {
-                                        isNetworkingOpen = !isNetworkingOpen
-                                        if (isNetworkingOpen) falar(context, tts, audioMap["abrindo_sessao_networking"], "Abrindo Networking.") { aiSpokenText = it }
-                                    }
-                                    VrAppState.TASKS -> {
-                                        isTasksOpen = !isTasksOpen
-                                        if (isTasksOpen) falar(context, tts, audioMap["exibindo_tarefas"], "Exibindo tarefas.") { aiSpokenText = it }
-                                    }
-                                    VrAppState.SETTINGS -> {
-                                        isSettingsOpen = !isSettingsOpen
-                                        if (isSettingsOpen) falar(context, tts, audioMap["recursos_tela"], "Abrindo painel de configurações.") { aiSpokenText = it }
-                                    }
-                                    else -> {}
+                                snapWindowsToCenter()
+
+                                // Agora ele apenas inverte o estado da aba clicada (se estava fechada, abre. Se estava aberta, fecha)
+                                // Isso permite abrir todas ao mesmo tempo.
+                                when (abaClicada.toString().lowercase()) {
+                                    "networking", "rede" -> isNetworkingOpen = !isNetworkingOpen
+                                    "tarefas", "tasks", "tarefa" -> isTasksOpen = !isTasksOpen
+                                    "configurações", "settings", "configuracoes", "ajustes" -> isSettingsOpen = !isSettingsOpen
                                 }
                             }
                         )
-                    }
-
-                    // JANELAS (TODAS JUNTAS E DESLOCADAS PARA BAIXO DO CENTRO)
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .offset(y = 150.dp) // <- Empurra o painel para baixo, liberando a visão central
-                            .graphicsLayer {
-                                translationX = -((smoothYaw - anchorYaw) * 20f)
-                                translationY = -((smoothPitch - anchorPitch) * 15f).coerceIn(-400f, 400f)
-                            },
-                        horizontalArrangement = Arrangement.spacedBy(40.dp), // <- Dá o espaçamento entre as telas
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-
-                        // TELA 1: NETWORKING
-                        AnimatedVisibility(
-                            visible = isNetworkingOpen && networkingBitmap != null,
-                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(initialScale = 0.8f, animationSpec = tween(500)),
-                            exit = fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 0.8f, animationSpec = tween(300))
-                        ) {
-                            networkingBitmap?.let {
-                                Image(
-                                    bitmap = it.asImageBitmap(),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(350.dp)
-                                        .clickable { isNetworkingOpen = false }
-                                )
-                            }
-                        }
-
-                        // TELA 2: TAREFAS
-                        AnimatedVisibility(
-                            visible = isTasksOpen && tasksBitmap != null,
-                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(initialScale = 0.8f, animationSpec = tween(500)),
-                            exit = fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 0.8f, animationSpec = tween(300))
-                        ) {
-                            tasksBitmap?.let {
-                                Image(
-                                    bitmap = it.asImageBitmap(),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(400.dp)
-                                        .clickable { isTasksOpen = false }
-                                )
-                            }
-                        }
-
-                        // TELA 3: SETTINGS (Agora lado a lado com as outras)
-                        AnimatedVisibility(
-                            visible = isSettingsOpen,
-                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(initialScale = 0.8f, animationSpec = tween(500)),
-                            exit = fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 0.8f, animationSpec = tween(300))
-                        ) {
-                            Box(modifier = Modifier.width(350.dp)) { // Limitando a largura para encaixar bem no layout multi-telas
-                                SettingsOverlay(
-                                    onClose = {
-                                        isSettingsOpen = false
-                                        falar(context, tts, null, "Minimizando configurações.") { aiSpokenText = it }
-                                    },
-                                    onResetBiometrics = {
-                                        falar(context, tts, audioMap["procedimento_padrao"], "Iniciando recalibração biométrica.") { aiSpokenText = it }
-                                        currentAppState = VrAppState.AUTHENTICATING
-                                    }
-                                )
-                            }
-                        }
                     }
                 }
             }
@@ -599,25 +745,37 @@ fun SmartCameraPreview(isFrontCamera: Boolean, onEyeDetectedState: (Int?) -> Uni
             try {
                 val cameraProvider = cameraProviderFuture.get()
                 cameraProvider.unbindAll()
-            } catch (e: Exception) { e.printStackTrace() }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
     AndroidView(
         modifier = Modifier.fillMaxSize(),
-        factory = { ctx -> PreviewView(ctx).apply { implementationMode = PreviewView.ImplementationMode.COMPATIBLE } },
+        factory = { ctx ->
+            PreviewView(ctx).apply {
+                implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+            }
+        },
         update = { previewView ->
             val executor = ContextCompat.getMainExecutor(context)
             cameraProviderFuture.addListener({
                 val cameraProvider = cameraProviderFuture.get()
                 cameraProvider.unbindAll()
-                val preview = Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
-                val selector = if (isFrontCamera) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
+                val preview = Preview.Builder().build()
+                    .also { it.surfaceProvider = previewView.surfaceProvider }
+                val selector =
+                    if (isFrontCamera) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
 
                 if (isFrontCamera) {
                     val analyzer = ImageAnalysis.Builder()
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                        .build().also { it.setAnalyzer(executor, EyeAnalyzer { id -> onEyeDetectedState(id) }) }
+                        .build().also {
+                            it.setAnalyzer(
+                                executor,
+                                EyeAnalyzer { id -> onEyeDetectedState(id) })
+                        }
                     cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview, analyzer)
                 } else {
                     cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview)
