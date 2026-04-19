@@ -496,33 +496,40 @@ fun CameraScreen(
                 isFrontCamera = (currentAppState == VrAppState.AUTHENTICATING),
                 onEyeDetectedState = { id -> detectedFaceId = id },
                 onHandTrackingUpdate = { offset, clicando ->
+                    // 1. DESFAZENDO A INVERSÃO: O mouse volta a seguir sua mão normalmente!
                     cursorOffsetNormalizado = androidx.compose.ui.geometry.Offset(offset.x, offset.y)
 
                     if (clicando && !wasClicking) {
                         val x = cursorOffsetNormalizado.x
+                        val y = cursorOffsetNormalizado.y
 
                         when {
-                            // Se clicar na ESQUERDA abre Networking
-                            x < 0.33f -> {
-                                isNetworkingOpen = !isNetworkingOpen
-                                isTasksOpen = false
-                                isSettingsOpen = false
-                            }
-                            // SE CLICAR NO MEIO abre CONFIGURAÇÕES (Ajustado com base no seu erro)
-                            x in 0.33f..0.66f -> {
-                                isSettingsOpen = !isSettingsOpen
-                                isTasksOpen = false
-                                isNetworkingOpen = false
-                            }
-                            // SE CLICAR NA DIREITA abre TAREFAS
-                            x > 0.66f -> {
+                            // ZONA TAREFAS (Logo após a logo)
+                            x in 0.12f..0.25f -> {
                                 isTasksOpen = !isTasksOpen
-                                isSettingsOpen = false
-                                isNetworkingOpen = false
+                                if (isTasksOpen) {
+                                    falar(context, tts, audioMap["exibindo_tarefas"], "Exibindo tarefas") { aiSpokenText = it }
+                                }
+                            }
+
+                            // ZONA NETWORKING (Meio do menu)
+                            x in 0.25f..0.38f -> {
+                                isNetworkingOpen = !isNetworkingOpen
+                                if (isNetworkingOpen) {
+                                    falar(context, tts, audioMap["sessao_networking"], "Abrindo networking") { aiSpokenText = it }
+                                }
+                            }
+
+                            // ZONA CONFIGURAÇÕES (Final do menu)
+                            x in 0.38f..0.55f -> {
+                                isSettingsOpen = !isSettingsOpen
+                                if (isSettingsOpen) {
+                                    falar(context, tts, audioMap["recursos_tela"], "Abrindo configurações") { aiSpokenText = it }
+                                }
                             }
                         }
-                        snapWindowsToCenter()
                     }
+
                     isClicking = clicando
                     wasClicking = clicando
                 }
@@ -583,92 +590,74 @@ fun CameraScreen(
                         .fillMaxSize()
                         .padding(horizontal = 25.dp, vertical = 40.dp)
                 ) {
+
+                    // 1. TELAS FLUTUANTES (Tarefas, Networking, Config)
                     Row(
                         modifier = Modifier
                             .align(Alignment.Center)
                             .offset(y = 150.dp)
                             .graphicsLayer {
-                                translationX = -((smoothYaw - anchorYaw) * 20f)
-                                translationY =
-                                    -((smoothPitch - anchorPitch) * 15f).coerceIn(-400f, 400f)
+                                var diffYaw = smoothYaw - anchorYaw
+                                if (diffYaw > 180f) diffYaw -= 360f
+                                if (diffYaw < -180f) diffYaw += 360f
+                                translationX = -(diffYaw * 20f).coerceIn(-500f, 500f) // Limita a fuga da tela
+                                translationY = -((smoothPitch - anchorPitch) * 15f).coerceIn(-300f, 300f)
                             },
                         horizontalArrangement = Arrangement.spacedBy(40.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-
+                        // TELA DE NETWORKING
                         AnimatedVisibility(
-                            visible = isNetworkingOpen && networkingBitmap != null,
-                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(
-                                initialScale = 0.8f,
-                                animationSpec = tween(500)
-                            ),
-                            exit = fadeOut(animationSpec = tween(300)) + scaleOut(
-                                targetScale = 0.8f,
-                                animationSpec = tween(300)
-                            )
+                            visible = isNetworkingOpen,
+                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(initialScale = 0.8f, animationSpec = tween(500)),
+                            exit = fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 0.8f, animationSpec = tween(300))
                         ) {
-                            networkingBitmap?.let {
+                            if (networkingBitmap != null) {
                                 Image(
-                                    bitmap = it.asImageBitmap(),
+                                    bitmap = networkingBitmap.asImageBitmap(),
                                     contentDescription = null,
-                                    modifier = Modifier
-                                        .size(350.dp)
-                                        .clickable { isNetworkingOpen = false }
+                                    modifier = Modifier.size(350.dp).clickable { isNetworkingOpen = false }
                                 )
+                            } else {
+                                Box(modifier = Modifier.size(350.dp).background(Color.Blue.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) {
+                                    Text("Networking: Imagem não carregou", color = Color.White)
+                                }
                             }
                         }
 
+                        // TELA DE TAREFAS
                         AnimatedVisibility(
-                            visible = isTasksOpen && tasksBitmap != null,
-                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(
-                                initialScale = 0.8f,
-                                animationSpec = tween(500)
-                            ),
-                            exit = fadeOut(animationSpec = tween(300)) + scaleOut(
-                                targetScale = 0.8f,
-                                animationSpec = tween(300)
-                            )
+                            visible = isTasksOpen,
+                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(initialScale = 0.8f, animationSpec = tween(500)),
+                            exit = fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 0.8f, animationSpec = tween(300))
                         ) {
-                            tasksBitmap?.let {
+                            if (tasksBitmap != null) {
                                 Image(
-                                    bitmap = it.asImageBitmap(),
+                                    bitmap = tasksBitmap.asImageBitmap(),
                                     contentDescription = null,
-                                    modifier = Modifier
-                                        .size(400.dp)
-                                        .clickable { isTasksOpen = false }
+                                    modifier = Modifier.size(400.dp).clickable { isTasksOpen = false }
                                 )
+                            } else {
+                                Box(modifier = Modifier.size(400.dp).background(Color.Red.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) {
+                                    Text("Tarefas: Imagem não carregou", color = Color.White)
+                                }
                             }
                         }
 
+                        // TELA DE CONFIGURAÇÕES
                         AnimatedVisibility(
                             visible = isSettingsOpen,
-                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(
-                                initialScale = 0.8f,
-                                animationSpec = tween(500)
-                            ),
-                            exit = fadeOut(animationSpec = tween(300)) + scaleOut(
-                                targetScale = 0.8f,
-                                animationSpec = tween(300)
-                            )
+                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(initialScale = 0.8f, animationSpec = tween(500)),
+                            exit = fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 0.8f, animationSpec = tween(300))
                         ) {
                             Box(modifier = Modifier.width(350.dp)) {
                                 SettingsOverlay(
                                     onClose = {
                                         isSettingsOpen = false
-                                        falar(
-                                            context,
-                                            tts,
-                                            null,
-                                            "Minimizando configurações."
-                                        ) { aiSpokenText = it }
+                                        falar(context, tts, null, "Minimizando configurações.") { aiSpokenText = it }
                                     },
                                     onResetBiometrics = {
-                                        falar(
-                                            context,
-                                            tts,
-                                            audioMap["procedimento_padrao"],
-                                            "Iniciando recalibração biométrica."
-                                        ) { aiSpokenText = it }
+                                        falar(context, tts, audioMap["procedimento_padrao"], "Iniciando recalibração biométrica.") { aiSpokenText = it }
                                         currentAppState = VrAppState.AUTHENTICATING
                                     }
                                 )
@@ -676,6 +665,8 @@ fun CameraScreen(
                         }
                     }
 
+                    // 2. ASSISTENTE BRÁS E BALÃO DE FALA
+                    // Fica um pouco mais acima (bottom = 120.dp) para não cobrir o MenuHome
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
@@ -685,12 +676,8 @@ fun CameraScreen(
                             verticalAlignment = Alignment.Bottom,
                             modifier = Modifier.wrapContentSize()
                         ) {
-
                             Box(
-                                modifier = Modifier
-                                    .size(75.dp)
-                                    .clip(CircleShape)
-                                    .border(3.dp, Color(0xFF00E5FF), CircleShape),
+                                modifier = Modifier.size(75.dp).clip(CircleShape).border(3.dp, Color(0xFF00E5FF), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (aiSpokenText.isEmpty()) {
@@ -698,83 +685,50 @@ fun CameraScreen(
                                         painter = painterResource(id = R.drawable.bras_static),
                                         contentDescription = "Brás Ocioso",
                                         contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(3.dp)
-                                            .background(Color.White)
+                                        modifier = Modifier.fillMaxSize().padding(3.dp).background(Color.White)
                                     )
                                 } else {
-                                    AiAssistantSprite(
-                                        texto = aiSpokenText,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
+                                    AiAssistantSprite(texto = aiSpokenText, modifier = Modifier.fillMaxSize())
                                 }
                             }
 
                             AnimatedVisibility(
                                 visible = aiSpokenText.isNotEmpty(),
-                                enter = expandHorizontally(
-                                    expandFrom = Alignment.Start,
-                                    animationSpec = tween(400)
-                                ) + fadeIn(animationSpec = tween(400)),
-                                exit = shrinkHorizontally(
-                                    shrinkTowards = Alignment.Start,
-                                    animationSpec = tween(400)
-                                ) + fadeOut(animationSpec = tween(400))
+                                enter = expandHorizontally(expandFrom = Alignment.Start, animationSpec = tween(400)) + fadeIn(animationSpec = tween(400)),
+                                exit = shrinkHorizontally(shrinkTowards = Alignment.Start, animationSpec = tween(400)) + fadeOut(animationSpec = tween(400))
                             ) {
                                 Surface(
-                                    shape = RoundedCornerShape(
-                                        topStart = 16.dp,
-                                        topEnd = 16.dp,
-                                        bottomEnd = 16.dp,
-                                        bottomStart = 2.dp
-                                    ),
+                                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 2.dp),
                                     color = Color.White.copy(alpha = 0.95f),
                                     shadowElevation = 8.dp,
-                                    modifier = Modifier
-                                        .padding(start = 12.dp, bottom = 10.dp)
-                                        .widthIn(max = 280.dp)
+                                    modifier = Modifier.padding(start = 12.dp, bottom = 10.dp).widthIn(max = 280.dp)
                                 ) {
-                                    Column(
-                                        modifier = Modifier.padding(16.dp)
-                                    ) {
-                                        Text(
-                                            text = "Assistente Brás",
-                                            style = TextStyle(
-                                                color = Color(0xFF008542),
-                                                fontSize = 16.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        )
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Text("Assistente Brás", style = TextStyle(color = Color(0xFF008542), fontSize = 16.sp, fontWeight = FontWeight.Bold))
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = aiSpokenText,
-                                            style = TextStyle(
-                                                color = Color.DarkGray,
-                                                fontSize = 15.sp,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        )
+                                        Text(aiSpokenText, style = TextStyle(color = Color.DarkGray, fontSize = 15.sp, fontWeight = FontWeight.Medium))
                                     }
                                 }
                             }
                         }
                     }
 
-                    Box(modifier = Modifier.align(Alignment.BottomStart)) {
+                    // 3. MENU HOME (Fica exatamente no canto inferior esquerdo)
+                    Box(
+                        modifier = Modifier.align(Alignment.BottomStart)
+                    ) {
                         MenuHome(
                             isNetworkingOpen = isNetworkingOpen,
                             isTasksOpen = isTasksOpen,
                             isSettingsOpen = isSettingsOpen,
                             onNavigate = { abaClicada ->
                                 snapWindowsToCenter()
-
-                                // Agora ele apenas inverte o estado da aba clicada (se estava fechada, abre. Se estava aberta, fecha)
-                                // Isso permite abrir todas ao mesmo tempo.
-                                when (abaClicada.toString().lowercase()) {
-                                    "networking", "rede" -> isNetworkingOpen = !isNetworkingOpen
-                                    "tarefas", "tasks", "tarefa" -> isTasksOpen = !isTasksOpen
-                                    "configurações", "settings", "configuracoes", "ajustes" -> isSettingsOpen = !isSettingsOpen
+                                // Como abaClicada já é do tipo VrAppState, o when fica muito mais limpo!
+                                when (abaClicada) {
+                                    VrAppState.NETWORKING -> isNetworkingOpen = !isNetworkingOpen
+                                    VrAppState.TASKS -> isTasksOpen = !isTasksOpen
+                                    VrAppState.SETTINGS -> isSettingsOpen = !isSettingsOpen
+                                    else -> {}
                                 }
                             }
                         )
@@ -782,6 +736,7 @@ fun CameraScreen(
                 }
             }
         }
+
         if (currentAppState != VrAppState.AUTHENTICATING && currentAppState != VrAppState.NFC_READING) {
             Box(
                 modifier = Modifier
@@ -799,5 +754,5 @@ fun CameraScreen(
                     .border(2.dp, Color.White, CircleShape)
             )
         }
-    }
-}
+    } // Fim da Box Principal
+} // Fim da função CameraScreen
